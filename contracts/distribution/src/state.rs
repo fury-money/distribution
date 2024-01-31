@@ -1,10 +1,9 @@
-// state.rs
 
 use cosmwasm_std::{Storage, StdResult};
 use serde::Serialize;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use cosmwasm_storage::{singleton, singleton_read};
+use cosmwasm_storage::{singleton, singleton_read}; // Import from cosmwasm_storage
 
 pub static ADMIN_KEY: &[u8] = b"admin";
 
