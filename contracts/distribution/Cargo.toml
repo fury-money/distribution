@@ -28,7 +28,6 @@ serde = { version = "1.0", features = ["derive"] }
 schemars = "0.9"
 cosmwasm_std = { version = "1.0.0-beta1", features = ["full"] }
 thiserror = "1.0.23"
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 cosmwasm-schema = "1.2.5"
 
 [dev-dependencies]
