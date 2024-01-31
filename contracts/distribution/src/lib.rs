@@ -9,7 +9,6 @@ use cosmwasm_std::{Coin, StdError};
 use crate::msg::QueryMsg;
 use cosmwasm_std::from_binary;
 
-use cosmwasm_vm::testing::query;
 
 #[cfg(test)]
 mod tests {
