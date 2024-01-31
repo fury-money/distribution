@@ -1,9 +1,8 @@
-use cosmwasm_std::{Deps, Env, StdResult};
+use cosmwasm_std::{Deps, Env, StdResult, BankQuery, WasmQuery, to_binary};
 use cosmwasm_std::QueryRequest;
 use crate::state::config_read;
-use cosmwasm_std::WasmQuery;
-use cosmwasm_std::to_binary;
 use crate::contract;  // Ensure this line is present
+
 
 pub fn handle_query<C>(deps: Deps, env: Env, request: QueryRequest<C>) -> StdResult<Vec<u8>> {
     match request {
