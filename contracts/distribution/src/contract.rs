@@ -62,7 +62,10 @@ fn distribute_funds(
     // Ensure the sender is the admin
     let state = config_read(deps.storage).load()?;
     if info.sender != state.admin {
-        return Err(StdError::Unauthorized);
+        return Err(StdError::GenericErr {
+            msg: "Unauthorized".to_string(),
+            backtrace: None,
+        });
     }
 
     // Ensure the number of recipients matches the number of amounts
@@ -115,7 +118,10 @@ fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdR
     // Ensure the sender is the current admin
     let mut state = config(deps.storage).load()?;
     if info.sender != state.admin {
-        return Err(StdError::Unauthorized);
+        return Err(StdError::GenericErr {
+            msg: "Unauthorized".to_string(),
+            backtrace: None,
+        });
     }
 
     // Update admin
