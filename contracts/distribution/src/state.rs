@@ -1,5 +1,5 @@
-use cosmwasm_std::{ReadonlySingleton, StdResult, Storage};
-use cosmwasm_storage::singleton;
+use cosmwasm_storage::{singleton, ReadonlySingleton, Singleton};
+use cosmwasm_std::{StdResult, Storage};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -17,7 +17,7 @@ impl State {
     }
 }
 
-pub fn config(storage: &dyn Storage) -> singleton::Singleton<State> {
+pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)
 }
 
