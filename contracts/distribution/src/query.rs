@@ -3,6 +3,10 @@ use cosmwasm_std::WasmQuery;
 use crate::state::config_read;
 use cosmwasm_std::BankQuery;
 use cosmwasm_std::to_binary;
+use crate::contract;  // Ensure this line is present
+
+// Your other imports and code...
+
 
 
 pub fn query<C>(deps: Deps, request: QueryRequest<C>) -> StdResult<Vec<u8>> {

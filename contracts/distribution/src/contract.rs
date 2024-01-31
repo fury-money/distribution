@@ -8,7 +8,8 @@ use std::collections::BTreeMap;
 use cosmwasm_std::StdError;
 
 
-pub const ADMIN_KEY: &str = "admin_key";
+const ADMIN_KEY: &[u8] = b"admin_key";
+
 
 
 // Define the initial state struct
@@ -64,7 +65,6 @@ fn distribute_funds(
     if info.sender != state.admin {
         return Err(StdError::GenericErr {
             msg: "Unauthorized".to_string(),
-            backtrace: None,
         });
     }
 
@@ -114,13 +114,16 @@ fn deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
     }
 }
 
+fn load_admin_key(storage: &dyn Storage) -> Vec<u8> {
+    storage.get(ADMIN_KEY).unwrap_or_default()
+}
+
 fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdResult<Response> {
     // Ensure the sender is the current admin
     let mut state = config(deps.storage).load()?;
     if info.sender != state.admin {
         return Err(StdError::GenericErr {
             msg: "Unauthorized".to_string(),
-            backtrace: None,
         });
     }
 
@@ -129,7 +132,7 @@ fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdR
     config(deps.storage).save(&state)?;
 
     // Save the new admin in a separate key (optional)
-    ADMIN_KEY.save(deps.storage, &new_admin)?;
+    ADMIN_KEY.save(deps.storage, new_admin.as_bytes())?;
 
     Ok(Response::default())
 }
