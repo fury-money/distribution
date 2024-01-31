@@ -77,30 +77,27 @@ fn distribute_funds(
     Ok(Response::default())
 }
 
-fn deposit(
-	deps: DepsMut, _env: Env, 
-	info: MessageInfo
-) -> StdResult<Response> {
-	let sent_amount = info.funds.iter().find(|coin| coin.denom == "uscrt").map(|coin| coin.amount.u128());
+fn deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
+    let sent_amount = info.funds.iter().find(|coin| coin.denom == "uscrt").map(|coin| coin.amount.u128());
 
-	if let Some(amount) = sent_amount {
-		// Validate the deposit amount (customize this based on your requirements)
-		if amount <= 0 {
-			return Err(StdError::generic_err("Invalid deposit amount"));
-		}
+    if let Some(amount) = sent_amount {
+        // Validate the deposit amount (customize this based on your requirements)
+        if amount <= 0 {
+            return Err(StdError::generic_err("Invalid deposit amount"));
+        }
 
-		// Update the contract state
-		let mut state = config(deps.storage).load()?;
-		state.balances
-			.entry(info.sender.clone())
-			.and_modify(|balance| *balance += amount)
-			.or_insert(amount);
-		config(deps.storage).save(&state)?;
+        // Update the contract state
+        let mut state = config(deps.storage).load()?;
+        state.balances
+            .entry(info.sender.clone())
+            .and_modify(|balance| *balance += amount)
+            .or_insert(amount);
+        config(deps.storage).save(&state)?;
 
-		Ok(Response::new().add_attribute("action", "deposit"))
-	} else {
-		Err(StdError::generic_err("No funds sent with the deposit message"))
-	}
+        Ok(Response::new().add_attribute("action", "deposit"))
+    } else {
+        Err(StdError::generic_err("No funds sent with the deposit message"))
+    }
 }
 
 fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdResult<Response> {
