@@ -2,7 +2,8 @@ pub mod msg;
 pub mod state;
 pub mod query;
 
-use cosmwasm_std::testing::{execute, instantiate}; // Import execute and instantiate directly from testing module
+use cosmwasm_std::testing; // Import the testing module
+
 use crate::msg::HandleMsg;
 use cosmwasm_std::StdError;
 use crate::msg::QueryMsg;
@@ -11,7 +12,8 @@ use cosmwasm_std::from_binary;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use testing::{mock_dependencies, mock_env, mock_info, execute, instantiate}; // Use testing module to import execute and instantiate
+
     use cosmwasm_std::Coin;
 
     fn default_init() -> msg::InitMsg {
