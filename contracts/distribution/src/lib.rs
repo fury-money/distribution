@@ -2,11 +2,19 @@ pub mod msg;
 pub mod state;
 pub mod query;
 
+use cosmwasm_vm::testing::instantiate::query;
+use crate::msg::HandleMsg;
+use cosmwasm_std::StdError;
+use crate::msg::QueryMsg;
+use cosmwasm_std::from_binary;
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::Coin;
+    use cosmwasm_vm::testing::instantiate;
 
     fn default_init() -> msg::InitMsg {
         msg::InitMsg {
@@ -16,26 +24,26 @@ mod tests {
 
     #[test]
     fn proper_initialization() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
     
         let msg = default_init();
         let info = mock_info("creator", &[]);
     
-        let res = state::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
     }
 
     #[test]
     fn deposit_works() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
     
         let msg = default_init();
         let info = mock_info("creator", &[]);
-        let _res = state::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     
         let info = mock_info("user", &[Coin::new(100, "uscrt")]);
-        let msg = state::HandleMsg::Deposit {};
-        let res = state::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let msg = HandleMsg::Deposit {};
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.attributes.len(), 1);
         assert_eq!(res.attributes[0].key, "action");
         assert_eq!(res.attributes[0].value, "deposit");
@@ -43,7 +51,7 @@ mod tests {
 	
 	#[test]
 	fn deposit_with_no_funds_results_in_error() {
-		let mut deps = mock_dependencies(&[]);
+		let mut deps = mock_dependencies();
 	
 		let msg = default_init();
 		let info = mock_info("creator", &[]);
@@ -58,7 +66,7 @@ mod tests {
 	
 	#[test]
 	fn distribute_funds_works() {
-		let mut deps = mock_dependencies(&[]);
+		let mut deps = mock_dependencies();
 	
 		let msg = default_init();
 		let info = mock_info("creator", &[]);
@@ -83,7 +91,7 @@ mod tests {
 	
 	#[test]
 	fn try_change_admin_works() {
-		let mut deps = mock_dependencies(&[]);
+		let mut deps = mock_dependencies();
 	
 		let msg = default_init();
 		let info = mock_info("creator", &[]);
@@ -101,7 +109,7 @@ mod tests {
 	
 	#[test]
 	fn query_balance_works() {
-		let mut deps = mock_dependencies(&[]);
+		let mut deps = mock_dependencies();
 	
 		let msg = default_init();
 		let info = mock_info("creator", &[]);
