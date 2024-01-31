@@ -50,9 +50,10 @@ impl Contract {
 
     pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
 		match msg {
-			QueryMsg::GetBalance {} => Ok(QueryResponse::default().with_result(query_balance(deps)?)),
+			QueryMsg::GetBalance {} => Ok(QueryResponse::default().add_attribute("result", to_binary(&query_balance(deps)?)?)),
 		}
 	}
+
 }
 
 fn distribute_funds(
@@ -116,7 +117,7 @@ fn deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
 }
 
 fn load_admin_key(storage: &dyn Storage) -> Vec<u8> {
-    storage.get(ADMIN_KEY).unwrap_or_default()
+    storage.get(ADMIN_KEY).unwrap_or_default().to_vec()
 }
 
 fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdResult<Response> {
@@ -133,7 +134,7 @@ fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdR
     config(deps.storage).save(&state)?;
 
     // Save the new admin in a separate key (optional)
-    ADMIN_KEY.save(deps.storage, new_admin.as_bytes())?;
+    deps.storage.set(ADMIN_KEY, new_admin.as_bytes());
 
     Ok(Response::default())
 }

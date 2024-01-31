@@ -8,14 +8,14 @@ pub fn handle_query<C>(deps: Deps, env: Env, request: QueryRequest<C>) -> StdRes
     match request {
         QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
             // Dispatch the query to the contract's query method
-            contract::query(deps, env, msg)
+            contract::query(deps, env, msg).map(|result| result.into())
         }
         QueryRequest::Bank(BankQuery::AllBalances { address }) => {
             // Query the contract state for the balance of the specified address
             let balances = config_read(deps.storage).load()?;
             let balance = balances.balances.get(&address).cloned().unwrap_or_default();
-            to_binary(&balance)
+            Ok(to_binary(&balance)?.into())
         }
-        _ => to_binary("Unsupported query request"),
+        _ => Ok(to_binary("Unsupported query request")?.into()),
     }
 }
