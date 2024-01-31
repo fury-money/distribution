@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HandleMsg",
+  "type": "object",
+  "properties": {
+    "recipients": { "type": "array", "items": { "type": "string" } },
+    "amounts": { "type": "array", "items": { "type": "integer" } },
+    "new_admin": { "type": "string" }
+  },
+  "anyOf": [
+    { "required": ["recipients", "amounts"] },
+    { "required": ["new_admin"] }
+  ]
+}

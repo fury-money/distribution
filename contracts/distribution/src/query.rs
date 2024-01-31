@@ -1,21 +1,45 @@
-use cosmwasm_std::{Deps, Env, StdResult, BankQuery, WasmQuery, to_binary};
-use cosmwasm_std::QueryRequest;
+use cosmwasm_std::{Deps, QueryRequest, QueryResponse, StdResult, to_binary};
 use crate::state::config_read;
-use crate::contract;  // Ensure this line is present
+use crate::Contract;
 
-
-pub fn handle_query<C>(deps: Deps, env: Env, request: QueryRequest<C>) -> StdResult<Vec<u8>> {
+pub fn handle_query(deps: Deps, request: QueryRequest) -> StdResult<QueryResponse> {
     match request {
-        QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
-            // Dispatch the query to the contract's query method
-            contract::query(deps, env, msg).map(|result| result.into())
-        }
-        QueryRequest::Bank(BankQuery::AllBalances { address }) => {
-            // Query the contract state for the balance of the specified address
-            let balances = config_read(deps.storage).load()?;
-            let balance = balances.balances.get(&address).cloned().unwrap_or_default();
-            Ok(to_binary(&balance)?.into())
-        }
-        _ => Ok(to_binary("Unsupported query request")?.into()),
+        QueryRequest::Wasm(wasm_query) => contract_query(deps, wasm_query),
+        _ => unsupported_query(),
     }
+}
+
+fn contract_query(deps: Deps, wasm_query: cosmwasm_std::WasmQuery) -> StdResult<QueryResponse> {
+    match wasm_query {
+        cosmwasm_std::WasmQuery::Smart { contract_addr, msg } => {
+            match msg {
+                ContractQuery::GetBalance { address } => get_balance(deps, address),
+                // Add more query variants as needed
+            }
+        }
+        _ => unsupported_query(),
+    }
+}
+
+fn get_balance(deps: Deps, address: String) -> StdResult<QueryResponse> {
+    let balances = Contract::query_balance(deps)?;
+
+    let balance = balances.into_iter().find(|(addr, _)| addr == &address);
+
+    match balance {
+        Some((_addr, amount)) => Ok(QueryResponse::default().add_attribute("balance", to_binary(&amount)?)),
+        None => Ok(QueryResponse::default().add_attribute("balance", to_binary(&0u128)?)),
+    }
+}
+
+fn unsupported_query() -> StdResult<QueryResponse> {
+    Ok(QueryResponse::default())
+}
+
+// Add more query variants as needed
+#[derive(Clone, PartialEq, MessageInfo, Debug, Deserialize, Serialize, JsonSchema)]
+pub enum ContractQuery {
+    GetBalance { address: String },
+    GetAdminAddress,
+    // Add more query variants as needed
 }

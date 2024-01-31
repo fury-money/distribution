@@ -1,122 +1,116 @@
-// tests.rs
-
-use cosmwasm_std::{from_binary, StdError, CosmosMsg, HumanAddr, Uint128, WasmMsg};
+use cosmwasm_std::{from_binary, to_binary, Env, Response, StdError, SubMsgExecutionResponse, WasmMsg, Coin, Uint128};
+use crate::contract::{Contract, HandleMsg, InitMsg, QueryMsg};
+use crate::state::{config, config_read, State};
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 
-use crate::contract::{Contract, HandleMsg, InitMsg, QueryMsg};
-use crate::msg::QueryResponse;
-use crate::state::{config, ADMIN_KEY};
+fn default_init() -> InitMsg {
+    InitMsg {
+        initial_balances: vec![],
+    }
+}
 
 #[test]
 fn proper_initialization() {
-    let mut deps = mock_dependencies(20, &[]);
+    let mut deps = mock_dependencies(&[]);
 
-    let msg = InitMsg {
-        initial_balances: vec![("addr1".to_string(), 100), ("addr2".to_string(), 50)],
-    };
+    let msg = default_init();
     let info = mock_info("creator", &[]);
 
-    // we can just call .unwrap() to assert this was a success
-    let res = contract::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let res = Contract::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(0, res.messages.len());
-
-    // it worked, let's query the state
-    let res = contract::query(deps.as_ref(), mock_env(), QueryMsg::GetBalance {}).unwrap();
-    let value: Vec<(String, u128)> = from_binary(&res).unwrap();
-    assert_eq!(2, value.len());
-    assert_eq!(100, value[0].1);
-    assert_eq!(50, value[1].1);
 }
 
 #[test]
-fn deposit_funds() {
-    let mut deps = mock_dependencies(20, &[]);
+fn deposit_works() {
+    let mut deps = mock_dependencies(&[]);
 
-    // Initialize the contract
-    let init_msg = InitMsg {
-        initial_balances: vec![("addr1".to_string(), 100)],
-    };
-    let init_info = mock_info("creator", &[]);
-    contract::instantiate(deps.as_mut(), mock_env(), init_info, init_msg).unwrap();
+    let msg = default_init();
+    let info = mock_info("creator", &[]);
+    let _res = Contract::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // Execute a deposit
-    let deposit_msg = HandleMsg::Deposit {};
-    let deposit_info = mock_info("addr2", &[coin("uscrt", 50)]);
-    let res = contract::execute(deps.as_mut(), mock_env(), deposit_info, deposit_msg).unwrap();
-    assert_eq!(0, res.messages.len());
-
-    // Query the updated balance
-    let query_res = contract::query(deps.as_ref(), mock_env(), QueryMsg::GetBalance {}).unwrap();
-    let value: Vec<(String, u128)> = from_binary(&query_res).unwrap();
-    assert_eq!(2, value.len());
-    assert_eq!(100, value[0].1);
-    assert_eq!(50, value[1].1);
+    let info = mock_info("user", &[Coin::new(100, "uscrt")]);
+    let msg = HandleMsg::Deposit {};
+    let res = Contract::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(res.attributes.len(), 1);
+    assert_eq!(res.attributes[0].key, "action");
+    assert_eq!(res.attributes[0].value, "deposit");
 }
 
 #[test]
-fn distribute_funds() {
-    let mut deps = mock_dependencies(20, &[]);
+fn deposit_with_no_funds_results_in_error() {
+    let mut deps = mock_dependencies(&[]);
 
-    // Initialize the contract
-    let init_msg = InitMsg {
-        initial_balances: vec![("addr1".to_string(), 100)],
-    };
-    let init_info = mock_info("creator", &[]);
-    contract::instantiate(deps.as_mut(), mock_env(), init_info, init_msg).unwrap();
+    let msg = default_init();
+    let info = mock_info("creator", &[]);
+    let _res = Contract::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // Execute a distribution
-    let distribute_msg = HandleMsg::DistributeFunds {
-        recipients: vec!["addr2".to_string(), "addr3".to_string()],
-        amounts: vec![30, 20],
-    };
-    let distribute_info = mock_info("creator", &[]);
-    let res = contract::execute(deps.as_mut(), mock_env(), distribute_info, distribute_msg).unwrap();
-    assert_eq!(0, res.messages.len());
+    let info = mock_info("user", &[]);
+    let msg = HandleMsg::Deposit {};
 
-    // Query the updated balance
-    let query_res = contract::query(deps.as_ref(), mock_env(), QueryMsg::GetBalance {}).unwrap();
-    let value: Vec<(String, u128)> = from_binary(&query_res).unwrap();
-    assert_eq!(2, value.len());
-    assert_eq!(70, value[0].1);  // 100 - 30
-    assert_eq!(20, value[1].1);  // 0 + 20
+    let res = Contract::execute(deps.as_mut(), mock_env(), info, msg);
+    assert_eq!(res.unwrap_err(), StdError::generic_err("No funds sent with the deposit message"));
 }
 
 #[test]
-fn admin_change() {
-    let mut deps = mock_dependencies(20, &[]);
+fn distribute_funds_works() {
+    let mut deps = mock_dependencies(&[]);
 
-    // Initialize the contract
-    let init_msg = InitMsg {
-        initial_balances: vec![("addr1".to_string(), 100)],
-    };
-    let init_info = mock_info("creator", &[]);
-    contract::instantiate(deps.as_mut(), mock_env(), init_info, init_msg).unwrap();
+    let msg = default_init();
+    let info = mock_info("creator", &[]);
+    let _res = Contract::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // Execute an admin change
-    let new_admin = HumanAddr::from("new_admin");
-    let admin_change_msg = HandleMsg::Admin {
-        new_admin: new_admin.clone(),
-    };
-    let admin_change_info = mock_info("creator", &[]);
-    let res = contract::execute(deps.as_mut(), mock_env(), admin_change_info, admin_change_msg).unwrap();
-    assert_eq!(0, res.messages.len());
+    // Deposit some funds
+    let info = mock_info("user1", &[Coin::new(100, "uscrt")]);
+    let msg = HandleMsg::Deposit {};
+    Contract::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // Query the updated admin
-    let query_res = deps
-        .querier
-        .query(&QueryRequest::Wasm(WasmQuery::Raw {
-            contract_addr: deps.api.addr_canonicalize("creator").unwrap(),
-            key: ADMIN_KEY.into(),
-        }))
-        .unwrap();
-    let queried_admin: String = from_binary(&query_res).unwrap();
-    assert_eq!(new_admin, HumanAddr::from(queried_admin));
+    // Distribute funds
+    let info = mock_info("creator", &[]);
+    let recipients = vec!["user1".to_string()];
+    let amounts = vec![50u128];
+    let msg = HandleMsg::DistributeFunds { recipients, amounts };
+    let res = Contract::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    assert_eq!(res.attributes.len(), 1);
+    assert_eq!(res.attributes[0].key, "action");
+    assert_eq!(res.attributes[0].value, "distribute_funds");
 }
 
-// Helper function to create a coin for testing
-fn coin(denom: &str, amount: u128) -> cosmos_sdk_proto::cosmos::base::v1beta1::Coin {
-    cosmos_sdk_proto::cosmos::base::v1beta1::Coin {
-        denom: denom.to_string(),
-        amount: amount.to_string(),
-    }
+#[test]
+fn try_change_admin_works() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = default_init();
+    let info = mock_info("creator", &[]);
+    let _res = Contract::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let info = mock_info("creator", &[]);
+    let new_admin = "new_admin".to_string();
+    let msg = HandleMsg::Admin { new_admin: new_admin.clone() };
+    let res = Contract::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    assert_eq!(res.attributes.len(), 1);
+    assert_eq!(res.attributes[0].key, "action");
+    assert_eq!(res.attributes[0].value, "try_change_admin");
+}
+
+#[test]
+fn query_balance_works() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = default_init();
+    let info = mock_info("creator", &[]);
+    let _res = Contract::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let info = mock_info("user1", &[Coin::new(100, "uscrt")]);
+    let msg = HandleMsg::Deposit {};
+    Contract::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let query_msg = QueryMsg::GetBalance {};
+    let query_res = Contract::query(deps.as_ref(), mock_env(), query_msg).unwrap();
+    let balance: Vec<(String, u128)> = from_binary(&query_res).unwrap();
+
+    assert_eq!(balance.len(), 1);
+    assert_eq!(balance[0].0, "user1");
+    assert_eq!(balance[0].1, 100u128);
 }

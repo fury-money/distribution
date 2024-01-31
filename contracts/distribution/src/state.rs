@@ -1,24 +1,22 @@
+use cosmwasm_std::{ReadonlySingleton, StdResult, Storage};
+use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Storage, StdResult};
-use serde::Serialize;
-use schemars::JsonSchema;
-use serde::Deserialize;
-use cosmwasm_storage::{singleton, singleton_read}; // Import from cosmwasm_storage
+pub static ADMIN_KEY: &[u8] = b"admin_key";
 
-pub static ADMIN_KEY: &[u8] = b"admin";
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct State {
     pub admin: String,
     pub balances: std::collections::BTreeMap<String, u128>,
 }
 
-pub fn config(storage: &mut dyn Storage) -> singleton::Singleton<State> {
-    singleton(storage, b"config")
+impl State {
+    pub fn new(admin: String, balances: std::collections::BTreeMap<String, u128>) -> Self {
+        Self { admin, balances }
+    }
 }
 
-pub fn config_read(storage: &dyn Storage) -> singleton_read::SingletonRead<State> {
-    singleton_read(storage, b"config")
+pub fn config(storage: &mut dyn Storage) -> ReadonlySingleton<State> {
+    ReadonlySingleton::new(storage, b"config")
 }
 
 pub fn get_admin(storage: &dyn Storage) -> StdResult<String> {

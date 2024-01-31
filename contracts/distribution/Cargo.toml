@@ -24,15 +24,11 @@ overflow-checks = true
 backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
-
-cosmwasm-std = "1.0.0-beta"  
-cosmwasm-storage = "1.0.0-beta" 
-cw-storage-plus = { version = "0.12.0" }
-schemars = "0.8"
-cw2 = "0.12.0"
+serde = { version = "1.0", features = ["derive"] }
+schemars = "0.9"
+cosmwasm_std = { version = "1.0.0-beta1", features = ["full"] }
 thiserror = "1.0.23"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-cw20 = "0.12.0"
 cosmwasm-schema = "1.2.5"
 
 [dev-dependencies]

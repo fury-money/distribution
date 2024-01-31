@@ -1,46 +1,30 @@
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, QueryResponse, Response, StdResult, Uint128, WasmMsg,
+    entry_point, to_binary, Binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult, Uint128, WasmMsg,
 };
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, config_read, State};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use cosmwasm_std::StdError;
 use cosmwasm_std::Storage;
-
 
 const ADMIN_KEY: &[u8] = b"admin_key";
 
-
-
-// Define the initial state struct
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Contract;
 
-// Implement the contract methods
 impl Contract {
     pub fn instantiate(deps: DepsMut, _env: Env, info: MessageInfo, msg: InitMsg) -> StdResult<Response> {
-		let balances: BTreeMap<String, u128> = msg
-			.initial_balances
-			.into_iter()
-			.collect(); // Convert Vec to BTreeMap
-	
-		let state = State {
-			admin: info.sender.to_string(),
-			balances,
-		};
-	
-		config(deps.storage).save(&state)?;
-	
-		Ok(Response::default())
-	}
+        let state = State {
+            admin: info.sender.to_string(),
+            balances: msg.initial_balances,
+        };
 
-    pub fn execute(
-        deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
-        msg: HandleMsg,
-    ) -> StdResult<Response> {
+        config(deps.storage).save(&state)?;
+
+        Ok(Response::default())
+    }
+
+    pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: HandleMsg) -> StdResult<Response> {
         match msg {
             HandleMsg::Deposit {} => deposit(deps, env, info),
             HandleMsg::DistributeFunds { recipients, amounts } => distribute_funds(deps, info, recipients, amounts),
@@ -49,11 +33,10 @@ impl Contract {
     }
 
     pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
-		match msg {
-			QueryMsg::GetBalance {} => Ok(QueryResponse::default().add_attribute("result", to_binary(&query_balance(deps)?)?)),
-		}
-	}
-
+        match msg {
+            QueryMsg::GetBalance {} => Ok(QueryResponse::default().add_attribute("result", to_binary(&query_balance(deps)?)?)),
+        }
+    }
 }
 
 fn distribute_funds(
@@ -62,7 +45,6 @@ fn distribute_funds(
     recipients: Vec<String>,
     amounts: Vec<u128>,
 ) -> StdResult<Response> {
-    // Ensure the sender is the admin
     let state = config_read(deps.storage).load()?;
     if info.sender != state.admin {
         return Err(StdError::GenericErr {
@@ -70,12 +52,10 @@ fn distribute_funds(
         });
     }
 
-    // Ensure the number of recipients matches the number of amounts
     if recipients.len() != amounts.len() {
         return Err(StdError::generic_err("Invalid input: recipients and amounts length mismatch"));
     }
 
-    // Distribute funds
     let mut updated_balances = state.balances.clone();
     for (recipient, amount) in recipients.iter().zip(amounts) {
         let mut balance = updated_balances
@@ -84,7 +64,6 @@ fn distribute_funds(
         *balance += amount;
     }
 
-    // Update state
     config(deps.storage).save(&State {
         admin: state.admin,
         balances: updated_balances,
@@ -97,12 +76,10 @@ fn deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
     let sent_amount = info.funds.iter().find(|coin| coin.denom == "uscrt").map(|coin| coin.amount.u128());
 
     if let Some(amount) = sent_amount {
-        // Validate the deposit amount (customize this based on your requirements)
         if amount <= 0 {
             return Err(StdError::generic_err("Invalid deposit amount"));
         }
 
-        // Update the contract state
         let mut state = config(deps.storage).load()?;
         state.balances
             .entry(info.sender.clone())
@@ -116,12 +93,7 @@ fn deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
     }
 }
 
-fn load_admin_key(storage: &dyn Storage) -> Vec<u8> {
-    storage.get(ADMIN_KEY).unwrap_or_default().to_vec()
-}
-
 fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdResult<Response> {
-    // Ensure the sender is the current admin
     let mut state = config(deps.storage).load()?;
     if info.sender != state.admin {
         return Err(StdError::GenericErr {
@@ -129,11 +101,9 @@ fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdR
         });
     }
 
-    // Update admin
     state.admin = new_admin.clone();
     config(deps.storage).save(&state)?;
 
-    // Save the new admin in a separate key (optional)
     deps.storage.set(ADMIN_KEY, new_admin.as_bytes());
 
     Ok(Response::default())
