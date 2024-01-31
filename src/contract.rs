@@ -1,11 +1,6 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult, Uint128, WasmMsg,
+    to_binary, Binary, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdError, StdResult, Storage, WasmMsg,
 };
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::state::{config, config_read, State};
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use cosmwasm_std::Storage;
 
 const ADMIN_KEY: &[u8] = b"admin_key";
 
