@@ -5,6 +5,8 @@ use cosmwasm_std::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
+use schemars::JsonSchema;
+use cosmwasm_std::Storage;
 
 const ADMIN_KEY: &[u8] = b"admin_key";
 
