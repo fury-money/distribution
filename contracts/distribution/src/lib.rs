@@ -2,16 +2,12 @@ pub mod msg;
 pub mod state;
 pub mod query;
 
-use cosmwasm_vm::testing::execute;
-use cosmwasm_vm::testing::instantiate;
-
+use cosmwasm_std::testing::execute;
+use cosmwasm_std::testing::instantiate;
 use cosmwasm_std::StdError;
-
 use crate::msg::HandleMsg;
 use crate::msg::QueryMsg;
-
 use cosmwasm_std::from_binary;
-
 
 #[cfg(test)]
 mod tests {
