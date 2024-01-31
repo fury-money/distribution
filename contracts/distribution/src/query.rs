@@ -1,20 +1,13 @@
-use cosmwasm_std::{Deps, QueryRequest, StdResult};
-use cosmwasm_std::WasmQuery;
-use crate::state::config_read;
-use cosmwasm_std::BankQuery;
-use cosmwasm_std::to_binary;
+use cosmwasm_std::{Deps, Env, QueryRequest, StdResult, WasmQuery, BankQuery, to_binary};
 use crate::contract;  // Ensure this line is present
+use crate::msg::QueryMsg;
+use crate::state::config_read;
 
-// Your other imports and code...
-
-
-
-pub fn handle_query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
-	query(deps, env, msg)  
+pub fn handle_query(deps: Deps, env: Env, request: QueryRequest) -> StdResult<Vec<u8>> {
     match request {
         QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
             // Dispatch the query to the contract's query method
-            contract::query(deps, msg)
+            contract::query(deps, env, msg)
         }
         QueryRequest::Bank(BankQuery::AllBalances { address }) => {
             // Query the contract state for the balance of the specified address
