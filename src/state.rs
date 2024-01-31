@@ -1,5 +1,6 @@
-use cosmwasm_std::{ReadonlySingleton, StdResult, Storage};
 use serde::{Deserialize, Serialize};
+use cosmwasm_storage::{ReadonlySingleton, ReadonlySingletonCow, Singleton, SingletonCow};
+use cosmwasm_std::{StdError, StdResult, Storage};
 
 pub static ADMIN_KEY: &[u8] = b"admin_key";
 

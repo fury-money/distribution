@@ -1,50 +1,69 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult, Uint128, WasmMsg,
+    entry_point, to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryRequest, QueryResponse,
+    Response, StdError, StdResult, Uint128, WasmMsg,
 };
-mod msg;
-mod state;
-
-use cosmwasm_std::StdError;
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::state::{config, config_read, State};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use cosmwasm_std::Storage;
+use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
 
 const ADMIN_KEY: &[u8] = b"admin_key";
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct Contract;
+pub struct State {
+    pub admin: String,
+    pub balances: BTreeMap<String, u128>,
+}
 
-impl Contract {
-    pub fn instantiate(deps: DepsMut, _env: Env, info: MessageInfo, msg: InitMsg) -> StdResult<Response> {
-        let state = State {
-            admin: info.sender.to_string(),
-            balances: msg.initial_balances,
-        };
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+pub enum HandleMsg {
+    Deposit {},
+    DistributeFunds { recipients: Vec<String>, amounts: Vec<u128> },
+    Admin { new_admin: String },
+}
 
-        config(deps.storage).save(&state)?;
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+pub enum QueryMsg {
+    GetBalance {},
+}
 
-        Ok(Response::default())
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+pub enum QueryAnswer {
+    GetBalance { result: Vec<(String, u128)> },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+pub enum HandleAnswer {
+    Deposit {},
+    DistributeFunds {},
+    Admin {},
+}
+
+#[entry_point]
+pub fn instantiate(deps: DepsMut, _env: Env, info: MessageInfo, msg: InitMsg) -> StdResult<Response> {
+    let state = State {
+        admin: info.sender.to_string(),
+        balances: msg.initial_balances,
+    };
+
+    config(deps.storage).save(&state)?;
+
+    Ok(Response::default())
+}
+
+#[entry_point]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: HandleMsg) -> StdResult<Response> {
+    match msg {
+        HandleMsg::Deposit {} => deposit(deps, env, info),
+        HandleMsg::DistributeFunds { recipients, amounts } => distribute_funds(deps, info, recipients, amounts),
+        HandleMsg::Admin { new_admin } => try_change_admin(deps, info, new_admin),
     }
+}
 
-    pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: HandleMsg) -> StdResult<Response> {
-        match msg {
-            HandleMsg::Deposit {} => deposit(deps, env, info),
-            HandleMsg::DistributeFunds { recipients, amounts } => distribute_funds(deps, info, recipients, amounts),
-            HandleMsg::Admin { new_admin } => try_change_admin(deps, info, new_admin),
-        }
+#[entry_point]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
+    match msg {
+        QueryMsg::GetBalance {} => query_balance(deps),
     }
-
-    pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
-		match msg {
-			QueryMsg::GetBalance {} => {
-				let balances = query_balance(deps)?;
-				let result = QueryAnswer::GetBalance { result: balances };
-				Ok(QueryResponse::new().add_attribute("result", to_binary(&result)?))
-			}
-		}
-	}
 }
 
 fn distribute_funds(
@@ -55,9 +74,7 @@ fn distribute_funds(
 ) -> StdResult<Response> {
     let state = config_read(deps.storage).load()?;
     if info.sender != state.admin {
-        return Err(StdError::GenericErr {
-            msg: "Unauthorized".to_string(),
-        });
+        return Err(StdError::Unauthorized {});
     }
 
     if recipients.len() != amounts.len() {
@@ -104,9 +121,7 @@ fn deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
 fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdResult<Response> {
     let mut state = config(deps.storage).load()?;
     if info.sender != state.admin {
-        return Err(StdError::GenericErr {
-            msg: "Unauthorized".to_string(),
-        });
+        return Err(StdError::Unauthorized {});
     }
 
     state.admin = new_admin.clone();
@@ -117,12 +132,31 @@ fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdR
     Ok(Response::default())
 }
 
-fn query_balance(deps: Deps) -> StdResult<Vec<(String, u128)>> {
+fn query_balance(deps: Deps) -> StdResult<QueryResponse> {
     let state = config_read(deps.storage).load()?;
     let balances: Vec<(String, u128)> = state
         .balances
         .iter()
         .map(|(addr, balance)| (addr.clone(), *balance))
         .collect();
-    Ok(balances)
+    Ok(QueryResponse::new().add_attribute("result", to_binary(&QueryAnswer::GetBalance { result: balances })?))
+}
+
+fn config(storage: &mut dyn Storage) -> Singleton<State> {
+    singleton(storage, ADMIN_KEY)
+}
+
+fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
+    singleton_read(storage, ADMIN_KEY)
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct InitMsg {
+    pub initial_balances: Vec<BalanceEntry>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct BalanceEntry {
+    pub address: String,
+    pub balance: u128,
 }
