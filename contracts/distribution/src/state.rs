@@ -22,5 +22,5 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
 }
 
 pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
-    singleton(storage, CONFIG_KEY)
+    ReadonlySingleton::new(storage, CONFIG_KEY)
 }
