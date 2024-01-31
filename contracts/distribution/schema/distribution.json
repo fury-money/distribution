@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "BalanceEntry": {
+      "type": "object",
+      "properties": {
+        "address": { "type": "string" },
+        "balance": { "type": "integer" }
+      },
+      "required": ["address", "balance"]
+    },
+    "InitMsg": {
+      "type": "object",
+      "properties": {
+        "initial_balances": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BalanceEntry" }
+        }
+      },
+      "required": ["initial_balances"]
+    },
+    "HandleMsg": {
+      "type": "object",
+      "properties": {
+        "Deposit": { "type": "object" },
+        "DistributeFunds": {
+          "type": "object",
+          "properties": {
+            "recipients": { "type": "array", "items": { "type": "string" } },
+            "amounts": { "type": "array", "items": { "type": "integer" } }
+          },
+          "required": ["recipients", "amounts"]
+        },
+        "Admin": {
+          "type": "object",
+          "properties": { "new_admin": { "type": "string" } },
+          "required": ["new_admin"]
+        }
+      },
+      "oneOf": [
+        { "required": ["Deposit"] },
+        { "required": ["DistributeFunds"] },
+        { "required": ["Admin"] }
+      ]
+    },
+    "QueryMsg": {
+      "type": "object",
+      "properties": {
+        "GetBalance": { "type": "object" }
+      },
+      "required": ["GetBalance"]
+    },
+    "QueryAnswer": {
+      "type": "object",
+      "properties": {
+        "GetBalance": {
+          "type": "object",
+          "properties": {
+            "result": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/BalanceEntry" }
+            }
+          },
+          "required": ["result"]
+        }
+      },
+      "required": ["GetBalance"]
+    },
+    "State": {
+      "type": "object",
+      "properties": {
+        "admin": { "type": "string" },
+        "balances": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        }
+      },
+      "required": ["admin", "balances"]
+    }
+  },
+  "type": "object",
+  "properties": {
+    "InitMsg": { "$ref": "#/definitions/InitMsg" },
+    "HandleMsg": { "$ref": "#/definitions/HandleMsg" },
+    "QueryMsg": { "$ref": "#/definitions/QueryMsg" },
+    "QueryAnswer": { "$ref": "#/definitions/QueryAnswer" },
+    "State": { "$ref": "#/definitions/State" }
+  }
+}
