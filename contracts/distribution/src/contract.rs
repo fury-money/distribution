@@ -49,10 +49,10 @@ impl Contract {
     }
 
     pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
-        match msg {
-            QueryMsg::GetBalance {} => to_binary(&query_balance(deps)?),
-        }
-    }
+		match msg {
+			QueryMsg::GetBalance {} => Ok(QueryResponse::default().with_result(query_balance(deps)?)),
+		}
+	}
 }
 
 fn distribute_funds(
