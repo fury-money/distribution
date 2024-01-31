@@ -1,6 +1,10 @@
 use cosmwasm_std::{
     entry_point, to_binary, Binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult, Uint128, WasmMsg,
 };
+mod msg;
+mod state;
+
+use cosmwasm_std::StdError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, config_read, State};
 use serde::{Deserialize, Serialize};
@@ -33,10 +37,14 @@ impl Contract {
     }
 
     pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
-        match msg {
-            QueryMsg::GetBalance {} => Ok(QueryResponse::default().add_attribute("result", to_binary(&query_balance(deps)?)?)),
-        }
-    }
+		match msg {
+			QueryMsg::GetBalance {} => {
+				let balances = query_balance(deps)?;
+				let result = QueryAnswer::GetBalance { result: balances };
+				Ok(QueryResponse::new().add_attribute("result", to_binary(&result)?))
+			}
+		}
+	}
 }
 
 fn distribute_funds(
