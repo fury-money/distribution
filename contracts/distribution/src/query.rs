@@ -9,7 +9,8 @@ use crate::contract;  // Ensure this line is present
 
 
 
-pub fn query<C>(deps: Deps, request: QueryRequest<C>) -> StdResult<Vec<u8>> {
+pub fn handle_query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
+	query(deps, env, msg)  
     match request {
         QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
             // Dispatch the query to the contract's query method

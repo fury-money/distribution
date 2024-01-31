@@ -1,11 +1,12 @@
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    MessageInfo, QueryResponse, Response, StdResult, Uint128, WasmMsg,
 };
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, config_read, State};
 use std::collections::BTreeMap;
 use cosmwasm_std::StdError;
+use cosmwasm_std::Storage;
 
 
 const ADMIN_KEY: &[u8] = b"admin_key";
@@ -47,7 +48,7 @@ impl Contract {
         }
     }
 
-    pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
         match msg {
             QueryMsg::GetBalance {} => to_binary(&query_balance(deps)?),
         }
