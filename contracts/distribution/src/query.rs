@@ -5,7 +5,7 @@ use cosmwasm_std::BankQuery;
 use cosmwasm_std::to_binary;
 
 
-pub fn query(deps: Deps, request: QueryRequest<C>) -> StdResult<Vec<u8>> {
+pub fn query<C>(deps: Deps, request: QueryRequest<C>) -> StdResult<Vec<u8>> {
     match request {
         QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
             // Dispatch the query to the contract's query method
