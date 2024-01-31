@@ -5,16 +5,16 @@ pub mod query;
 use cosmwasm_std::testing; // Import the testing module
 
 use crate::msg::HandleMsg;
-use cosmwasm_std::StdError;
+use cosmwasm_std::{Coin, StdError};
 use crate::msg::QueryMsg;
 use cosmwasm_std::from_binary;
+
+use cosmwasm_vm::testing::query;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use testing::{mock_dependencies, mock_env, mock_info, execute, instantiate}; // Use testing module to import execute and instantiate
-
-    use cosmwasm_std::Coin;
+    use testing::{mock_dependencies, mock_env, mock_info};
 
     fn default_init() -> msg::InitMsg {
         msg::InitMsg {
@@ -29,7 +29,7 @@ mod tests {
         let msg = default_init();
         let info = mock_info("creator", &[]);
     
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res = state::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
     }
 
@@ -39,11 +39,11 @@ mod tests {
     
         let msg = default_init();
         let info = mock_info("creator", &[]);
-        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let _res = state::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     
         let info = mock_info("user", &[Coin::new(100, "uscrt")]);
-        let msg = HandleMsg::Deposit {};
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let msg = <msg::HandleMsg as Example>::Deposit {};
+        let res = state::execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.attributes.len(), 1);
         assert_eq!(res.attributes[0].key, "action");
         assert_eq!(res.attributes[0].value, "deposit");
@@ -58,7 +58,7 @@ mod tests {
 		let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 	
 		let info = mock_info("user", &[]);
-		let msg = HandleMsg::Deposit {};
+		let msg = <msg::HandleMsg as Example>::Deposit {};
 	
 		let res = execute(deps.as_mut(), mock_env(), info, msg);
 		assert_eq!(res.unwrap_err(), StdError::generic_err("No funds sent with the deposit message"));
@@ -74,14 +74,14 @@ mod tests {
 	
 		// Deposit some funds
 		let info = mock_info("user1", &[Coin::new(100, "uscrt")]);
-		let msg = HandleMsg::Deposit {};
+		let msg = <msg::HandleMsg as Example>::Deposit {};
 		execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 	
 		// Distribute funds
 		let info = mock_info("creator", &[]);
 		let recipients = vec!["user1".to_string()];
 		let amounts = vec![50u128];
-		let msg = HandleMsg::DistributeFunds { recipients, amounts };
+		let msg = <msg::HandleMsg as Example>::DistributeFunds { recipients, amounts };
 		let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 	
 		assert_eq!(res.attributes.len(), 1);
@@ -99,7 +99,7 @@ mod tests {
 	
 		let info = mock_info("creator", &[]);
 		let new_admin = "new_admin".to_string();
-		let msg = HandleMsg::Admin { new_admin: new_admin.clone() };
+		let msg = <msg::HandleMsg as Example>::Admin { new_admin: new_admin.clone() };
 		let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 	
 		assert_eq!(res.attributes.len(), 1);
@@ -116,10 +116,10 @@ mod tests {
 		let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 	
 		let info = mock_info("user1", &[Coin::new(100, "uscrt")]);
-		let msg = HandleMsg::Deposit {};
+		let msg = <msg::HandleMsg as Example>::Deposit {};
 		execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 	
-		let query_msg = QueryMsg::GetBalance {};
+		let query_msg = <msg::QueryMsg as Example>::GetBalance {};
 		let query_res = query(deps.as_ref(), mock_env(), query_msg).unwrap();
 		let balance: Vec<(String, u128)> = from_binary(&query_res).unwrap();
 	
