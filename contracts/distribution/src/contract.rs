@@ -4,7 +4,8 @@ use cosmwasm_std::{
 };
 use cosmwasm_std::StdError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::state::{config, config_read, State, ADMIN_KEY};
+use crate::state::{config, config_read, State};
+use std::collections::BTreeMap;
 
 pub const ADMIN_KEY: &str = "admin_key";
 
