@@ -33,7 +33,7 @@ thiserror = "1.0.23"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 cw20 = "0.12.0"
 cosmwasm-schema = "1.2.5"
-cosmwasm-std/testing = "1.0.0-beta1"
+
 
 [dev-dependencies]
 cosmwasm-vm = "1.0.0-beta"
