@@ -1,0 +1,48 @@
+{
+  "title": "HandleMsg",
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "distribute_rewards": {
+          "type": "object",
+          "properties": {
+            "amount": {
+              "type": "string",
+              "format": "uint128"
+            }
+          },
+          "required": ["amount"]
+        }
+      },
+      "required": ["distribute_rewards"]
+    },
+    {
+      "properties": {
+        "add_stakers": {
+          "type": "object",
+          "properties": {
+            "stakers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "string",
+                    "format": "uint128"
+                  }
+                },
+                "required": ["address", "amount"]
+              }
+            }
+          },
+          "required": ["stakers"]
+        }
+      },
+      "required": ["add_stakers"]
+    }
+  ]
+}

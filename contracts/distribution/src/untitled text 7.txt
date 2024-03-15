@@ -1,0 +1,5 @@
+{
+  "title": "InstantiateMsg",
+  "type": "object",
+  "properties": {}
+}
