@@ -1,34 +1,17 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use cosmwasm_std::{Addr, Uint128};
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
-    pub initial_balances: Vec<BalanceEntry>,
+#[serde(rename_all = "snake_case")]
+pub enum HandleMsg {
+    DistributeRewards { amount: Uint128 },
+    AddStakers { stakers: Vec<Staker> },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct HandleMsg {
-    pub recipients: Vec<String>,
-    pub amounts: Vec<u128>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct QueryMsg;
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub enum QueryAnswer {
-    GetBalance { result: Vec<(String, u128)> },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub enum HandleAnswer {
-    Deposit {},
-    DistributeFunds {},
-    Admin {},
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct BalanceEntry {
-    pub address: String,
-    pub balance: u128,
+pub struct Staker {
+    pub address: Addr,
+    pub amount: Uint128,
 }

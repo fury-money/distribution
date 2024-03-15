@@ -1,155 +1,163 @@
-use cosmwasm_std::{entry_point, to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryRequest, QueryResponse,
-    Response, StdError, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{
+    Addr, Api, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Storage, Uint128, WasmMsg,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
-use schemars::JsonSchema;
+use std::collections::HashMap;
+use std::str::FromStr;
 
-const ADMIN_KEY: &[u8] = b"admin_key";
-
-#[derive(Default, Serialize, Deserialize)]
-pub struct State {
-    pub admin: String,
-    pub balances: BTreeMap<String, u128>,
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Staker {
+    pub address: Addr,
+    pub amount: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-pub enum HandleMsg {
-    Deposit {},
-    DistributeFunds { recipients: Vec<String>, amounts: Vec<u128> },
-    Admin { new_admin: String },
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Stakers {
+    pub stakers: Vec<Staker>,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-pub enum QueryMsg {
-    GetBalance {},
+pub fn store_stakers(storage: &mut dyn Storage, stakers: &Stakers) -> StdResult<()> {
+    storage.set(b"stakers", &serde_json::to_vec(stakers)?);
+    Ok(())
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-pub enum QueryAnswer {
-    GetBalance { result: Vec<(String, u128)> },
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-pub enum HandleAnswer {
-    Deposit {},
-    DistributeFunds {},
-    Admin {},
-}
-
-#[entry_point]
-pub fn instantiate(deps: DepsMut, _env: Env, info: MessageInfo, msg: InitMsg) -> StdResult<Response> {
-    let mut balances = BTreeMap::new();
-    for entry in msg.initial_balances {
-        balances.insert(entry.address, entry.balance);
-    }
-
-    let state = State {
-        admin: info.sender.to_string(),
-        balances,
-    };
-
-    config(deps.storage).save(&state)?;
-
-    Ok(Response::default())
-}
-
-#[entry_point]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: HandleMsg) -> StdResult<Response> {
-    match msg {
-        HandleMsg::Deposit {} => deposit(deps, env, info),
-        HandleMsg::DistributeFunds { recipients, amounts } => distribute_funds(deps, info, recipients, amounts),
-        HandleMsg::Admin { new_admin } => try_change_admin(deps, info, new_admin),
+pub fn read_stakers(storage: &dyn Storage) -> StdResult<Stakers> {
+    match storage.get(b"stakers") {
+        Some(data) => Ok(serde_json::from_slice(&data)?),
+        None => Ok(Stakers { stakers: vec![] }),
     }
 }
 
-#[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
-    match msg {
-        QueryMsg::GetBalance {} => query_balance(deps),
-    }
-}
-
-fn distribute_funds(
+pub fn distribute_rewards(
     deps: DepsMut,
-    info: MessageInfo,
-    recipients: Vec<String>,
-    amounts: Vec<u128>,
+    _env: Env,
+    _info: MessageInfo,
+    amount: Uint128,
 ) -> StdResult<Response> {
-    let state = config_read(deps.storage).load()?;
-    if info.sender != state.admin {
-        return Err(StdError::Unauthorized {});
+    // Load stakers
+    let stakers = read_stakers(deps.storage)?;
+
+    // Perform reward distribution logic
+    let num_stakers = stakers.stakers.len();
+    if num_stakers == 0 {
+        return Err(StdError::generic_err("No stakers found"));
+    }
+    let reward_per_staker = amount.checked_div(Uint128::from(num_stakers as u128))
+        .ok_or_else(|| StdError::generic_err("Reward amount too small"))?;
+
+    // Generate transfer messages for each staker
+    let mut messages: Vec<CosmosMsg> = vec![];
+    for staker in stakers.stakers.iter() {
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: staker.address.clone(),
+            msg: to_binary(&HandleMsg::DistributeReward {
+                amount: reward_per_staker,
+            })?,
+            funds: vec![],
+        }));
     }
 
-    if recipients.len() != amounts.len() {
-        return Err(StdError::generic_err("Invalid input: recipients and amounts length mismatch"));
-    }
+    Ok(Response::new().add_messages(messages))
+}
 
-    let mut updated_balances = state.balances.clone();
-    for (recipient, amount) in recipients.iter().zip(amounts) {
-        let mut balance = updated_balances
-            .entry(recipient.clone())
-            .or_insert(0);
-        *balance += amount;
-    }
-
-    config(deps.storage).save(&State {
-        admin: state.admin,
-        balances: updated_balances,
-    })?;
+pub fn instantiate(
+    deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _amount: Uint128,
+) -> StdResult<Response> {
+    // Store initial state if needed
+    store_stakers(deps.storage, &Stakers { stakers: vec![] })?;
 
     Ok(Response::default())
 }
 
-fn deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
-    let sent_amount = info.funds.iter().find(|coin| coin.denom == "uscrt").map(|coin| coin.amount.u128());
-
-    if let Some(amount) = sent_amount {
-        if amount <= 0 {
-            return Err(StdError::generic_err("Invalid deposit amount"));
+pub fn handle(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    msg: HandleMsg,
+) -> StdResult<Response> {
+    match msg {
+        HandleMsg::DistributeRewards { amount } => {
+            // Only admin can distribute rewards
+            if info.sender != ADMIN {
+                return Err(StdError::unauthorized());
+            }
+            distribute_rewards(deps, _env, info, amount)
         }
-
-        let mut state = config(deps.storage).load()?;
-        state.balances
-            .entry(info.sender.clone())
-            .and_modify(|balance| *balance += amount)
-            .or_insert(amount);
-        config(deps.storage).save(&state)?;
-
-        Ok(Response::new().add_attribute("action", "deposit"))
-    } else {
-        Err(StdError::generic_err("No funds sent with the deposit message"))
+        HandleMsg::AddStakers { stakers } => add_stakers(deps, info, stakers),
     }
 }
 
-fn try_change_admin(deps: DepsMut, info: MessageInfo, new_admin: String) -> StdResult<Response> {
-    let mut state = config(deps.storage).load()?;
-    if info.sender != state.admin {
-        return Err(StdError::Unauthorized {});
+pub fn add_stakers(deps: DepsMut, info: MessageInfo, stakers: Vec<Staker>) -> StdResult<Response> {
+    // Only admin can add stakers
+    if info.sender != ADMIN {
+        return Err(StdError::unauthorized());
     }
 
-    state.admin = new_admin.clone();
-    config(deps.storage).save(&state)?;
-
-    deps.storage.set(ADMIN_KEY, new_admin.as_bytes());
+    let mut stored_stakers = read_stakers(deps.storage)?;
+    stored_stakers.stakers.extend(stakers);
+    store_stakers(deps.storage, &stored_stakers)?;
 
     Ok(Response::default())
 }
 
-fn query_balance(deps: Deps) -> StdResult<QueryResponse> {
-    let state = config_read(deps.storage).load()?;
-    let balances: Vec<(String, u128)> = state
-        .balances
-        .iter()
-        .map(|(addr, balance)| (addr.clone(), *balance))
-        .collect();
-    Ok(QueryResponse::new().add_attribute("result", to_binary(&QueryAnswer::GetBalance { result: balances })?))
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HandleMsg {
+    DistributeRewards { amount: Uint128 },
+    AddStakers { stakers: Vec<Staker> },
 }
 
-fn config(storage: &mut dyn cosmwasm_std::Storage) -> Singleton<State> {
-    singleton(storage, ADMIN_KEY)
-}
+const ADMIN: &str = "admin_contract_address"; // Set your admin address here
 
-fn config_read(storage: &dyn cosmwasm_std::Storage) -> ReadonlySingleton<State> {
-    singleton_read(storage, ADMIN_KEY)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockStorage};
+
+    #[test]
+    fn proper_initialization() {
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_env();
+        let info = mock_info("creator", &[]);
+        let msg = instantiate(deps.as_mut(), env.clone(), info.clone(), Uint128::new(0)).unwrap();
+        assert_eq!(0, msg.messages.len());
+
+        // It should store the empty list of stakers
+        let stakers: Stakers = read_stakers(deps.as_ref().storage).unwrap();
+        assert_eq!(0, stakers.stakers.len());
+    }
+
+    #[test]
+    fn add_stakers() {
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_env();
+        let info = mock_info(ADMIN, &[]);
+        let addr1 = String::from("addr1");
+        let addr2 = String::from("addr2");
+        let amount1 = Uint128::new(100);
+        let amount2 = Uint128::new(200);
+        let staker1 = Staker {
+            address: deps.api.addr_validate(&addr1).unwrap(),
+            amount: amount1,
+        };
+        let staker2 = Staker {
+            address: deps.api.addr_validate(&addr2).unwrap(),
+            amount: amount2,
+        };
+        let msg = HandleMsg::AddStakers {
+            stakers: vec![staker1.clone(), staker2.clone()],
+        };
+        let res = handle(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // It should store the stakers
+        let stakers: Stakers = read_stakers(deps.as_ref().storage).unwrap();
+        assert_eq!(2, stakers.stakers.len());
+        assert_eq!(staker1, stakers.stakers[0]);
+        assert_eq!(staker2, stakers.stakers[1]);
+    }
 }
