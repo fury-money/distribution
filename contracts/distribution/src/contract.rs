@@ -65,7 +65,7 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _amount: Uint128,
+    _msg: InstantiateMsg,
 ) -> StdResult<Response> {
     // Store initial state if needed
     store_stakers(deps.storage, &Stakers { stakers: vec![] })?;
@@ -111,7 +111,11 @@ pub enum HandleMsg {
     AddStakers { stakers: Vec<Staker> },
 }
 
-const ADMIN: &str = "admin_contract_address"; // Set your admin address here
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InstantiateMsg {}
+
+const ADMIN: &str = "furya1f9eh8dh7j4nqe8nfq0lhpnr2elh5jr2w4nngt2"; // Set your admin address here
 
 #[cfg(test)]
 mod tests {
@@ -123,7 +127,7 @@ mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_env();
         let info = mock_info("creator", &[]);
-        let msg = instantiate(deps.as_mut(), env.clone(), info.clone(), Uint128::new(0)).unwrap();
+        let msg = instantiate(deps.as_mut(), env.clone(), info.clone(), InstantiateMsg {}).unwrap();
         assert_eq!(0, msg.messages.len());
 
         // It should store the empty list of stakers
